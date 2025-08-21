@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "950541571844",
+    "project_id": "logistica-cap",
+    "storage_bucket": "logistica-cap.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:950541571844:android:a81f44c43e0314020b2251",
+        "android_client_info": {
+          "package_name": "com.example.logistica_cap"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDWZ1RKnIG5e5aaRM_2u6Lazn4sn6Ltav4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
