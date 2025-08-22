@@ -44,7 +44,7 @@ class _ShipsListScreenState extends State<ShipsListScreen> {
       case 'Finalizado':
         chipColor = Colors.green;
         break;
-      case 'Atracado':
+      case 'Previsto':
         chipColor = Colors.blueAccent;
         break;
       case 'Cancelado':

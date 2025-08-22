@@ -23,7 +23,7 @@ class _ShipFormScreenState extends State<ShipFormScreen> {
   late TextEditingController _endDateController;
   String? _selectedStatus;
 
-  final List<String> _statusOptions = ['Operando', 'Finalizado'];
+  final List<String> _statusOptions = ['Operando', 'Previsto', 'Finalizado'];
 
   @override
   void initState() {
