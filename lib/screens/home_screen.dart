@@ -15,6 +15,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:http/http.dart' as http; // Importe o pacote http
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:window_manager/window_manager.dart';
 
 // Definindo um tipo para o resultado da nossa busca
 typedef DashboardTotals = ({
@@ -37,8 +38,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  bool _isFullscreen = false;
+class _HomeScreenState extends State<HomeScreen> with WindowListener {
   bool _isAdmin = false;
   bool _isLoading = true;
   // --- NOVAS VARIÁVEIS DE ESTADO PARA O CALENDÁRIO ---
@@ -56,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _selectedDay = _focusedDay;
     _selectedEvents = ValueNotifier(_getEventsForDay(_selectedDay!));
     //_fetchCalendarEvents(_focusedDay);
-
+    windowManager.addListener(this);
     // A primeira carga de dados acontece aqui
     _refreshData();
   }
@@ -64,20 +64,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _selectedEvents.dispose();
+    windowManager.removeListener(this);
     super.dispose();
   }
 
-  void _toggleFullscreen() {
-    setState(() {
-      _isFullscreen = !_isFullscreen;
-      if (_isFullscreen) {
-        // Entra em tela cheia imersiva
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-      } else {
-        // Sai da tela cheia, mostrando as barras do sistema
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      }
-    });
+  @override
+  void onWindowMaximize() async {
+    // Entra em modo de tela cheia quando a janela é maximizada
+    await windowManager.setFullScreen(true);
+  }
+
+  @override
+  void onWindowUnmaximize() async {
+    // Sai do modo de tela cheia quando a janela é restaurada
+    await windowManager.setFullScreen(false);
   }
 
   void _refreshData() {
@@ -368,14 +368,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       .orderBy('endDate')
                       .snapshots(),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting)
+                    if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(
                         child: Padding(
                           padding: EdgeInsets.all(32.0),
                           child: CircularProgressIndicator(color: Colors.white),
                         ),
                       );
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       return const Center(
                         child: Padding(
                           padding: EdgeInsets.all(32.0),
@@ -385,6 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       );
+                    }
 
                     final ships = snapshot.data!.docs
                         .map((doc) => Ship.fromFirestore(doc))
@@ -644,20 +646,25 @@ class _HomeScreenState extends State<HomeScreen> {
     // Lógica para criar o botão de menu ou um espaço vazio
     Widget menuTrigger;
     if (_isAdmin) {
-      // Se for admin, cria um botão de menu clicável
-      menuTrigger = IconButton(
-        icon: const Icon(Icons.menu, color: Colors.white, size: 30),
-        tooltip: 'Abrir menu',
-        onPressed: () {
+      // Se for admin, cria o logo clicável
+      menuTrigger = InkWell(
+        onTap: () {
           // Comando para abrir o menu lateral (Drawer)
           Scaffold.of(context).openDrawer();
         },
+        child: Image.asset(
+          'assets/images/logo.png',
+          width: 80, // Ajuste o tamanho conforme necessário
+          height: 70,
+        ),
       );
     } else {
-      // Se não for admin, cria um espaço vazio com a mesma largura
-      menuTrigger = const SizedBox(
-        width: 56,
-      ); // Largura padrão de um IconButton
+      // Se não for admin, exibe apenas o logo sem a funcionalidade de clique
+      menuTrigger = Image.asset(
+        'assets/images/logo.png',
+        width: 40, // Use a mesma largura para manter o layout
+        height: 40,
+      );
     }
 
     return Padding(
@@ -1001,98 +1008,107 @@ class _HomeScreenState extends State<HomeScreen> {
             ? const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               )
-            : Column(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      _toggleFullscreen;
-                    },
-                    child: Builder(
+            : RawKeyboardListener(
+                focusNode: FocusNode(),
+                autofocus: true,
+                onKey: (event) async {
+                  if (event is RawKeyDownEvent) {
+                    if (event.logicalKey == LogicalKeyboardKey.f11) {
+                      // Verifique o estado atual e alterne
+                      final isCurrentlyFullScreen = await windowManager
+                          .isFullScreen();
+                      await windowManager.setFullScreen(!isCurrentlyFullScreen);
+                    }
+                  }
+                },
+                child: Column(
+                  children: [
+                    Builder(
                       builder: (context) {
                         // Este 'context' é a chave!
                         return _buildHeader(context);
                       },
-                    ),
-                  ), // Cabeçalho customizado
-                  const Divider(color: Colors.white24, height: 1),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16.0),
-                      child: SizedBox(
-                        height:
-                            MediaQuery.of(context).size.height -
-                            headerHeight -
-                            40,
-                        child: Column(
-                          children: [
-                            // --- LINHA 1 ---
-                            Expanded(
-                              flex: 6, // 60%
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // COLUNA 1.1: Calendário
-                                  Expanded(flex: 4, child: _buildCalendar()),
-                                  const SizedBox(width: 16),
-                                  // COLUNA 1.2: Movimentação de Navios
-                                  Expanded(
-                                    flex: 5,
-                                    child: _buildMovimentacaoNavios(
-                                      startOfMonth,
-                                      endOfMonth,
+                    ), // Cabeçalho customizado
+                    const Divider(color: Colors.white24, height: 1),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(16.0),
+                        child: SizedBox(
+                          height:
+                              MediaQuery.of(context).size.height -
+                              headerHeight -
+                              40,
+                          child: Column(
+                            children: [
+                              // --- LINHA 1 ---
+                              Expanded(
+                                flex: 6, // 60%
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // COLUNA 1.1: Calendário
+                                    Expanded(flex: 4, child: _buildCalendar()),
+                                    const SizedBox(width: 16),
+                                    // COLUNA 1.2: Movimentação de Navios
+                                    Expanded(
+                                      flex: 5,
+                                      child: _buildMovimentacaoNavios(
+                                        startOfMonth,
+                                        endOfMonth,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  // COLUNA 1.3: Totais
-                                  Expanded(
-                                    flex: 3,
-                                    child: _buildTotalizadorAnual(now.year),
-                                  ),
-                                ],
+                                    const SizedBox(width: 16),
+                                    // COLUNA 1.3: Totais
+                                    Expanded(
+                                      flex: 3,
+                                      child: _buildTotalizadorAnual(now.year),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 16),
-                            // --- LINHA 2 ---
-                            Expanded(
-                              flex: 4,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // COLUNA 2.1: Line-up 201
-                                  Expanded(
-                                    flex: 6,
-                                    child: _buildLineup201(_lineupFuture),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  // COLUNA 2.2: Line-up Outros Berços
-                                  Expanded(
-                                    flex: 3,
-                                    child: _buildLineupOutrosBercos(
-                                      _lineupFuture,
+                              const SizedBox(height: 16),
+                              // --- LINHA 2 ---
+                              Expanded(
+                                flex: 4,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // COLUNA 2.1: Line-up 201
+                                    Expanded(
+                                      flex: 6,
+                                      child: _buildLineup201(_lineupFuture),
                                     ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  // COLUNA 2.3: Embarcando
-                                  Expanded(
-                                    flex: 2,
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        _buildEmbarcandoCard(),
-                                        _buildPrevistoCard(), // Adicionado aqui
-                                      ],
+                                    const SizedBox(width: 16),
+                                    // COLUNA 2.2: Line-up Outros Berços
+                                    Expanded(
+                                      flex: 3,
+                                      child: _buildLineupOutrosBercos(
+                                        _lineupFuture,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 16),
+                                    // COLUNA 2.3: Embarcando
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          _buildEmbarcandoCard(),
+                                          _buildPrevistoCard(), // Adicionado aqui
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
       ),
     );
@@ -1191,33 +1207,36 @@ class _Lineup201WidgetState extends State<_Lineup201Widget> {
     return GenericCard(
       title: 'LINE-UP 201',
       headers: [
-        'Navio',
-        'Produto',
+        'NAVIO',
+        'PRODUTO',
         'ETA',
-        'Quantidade',
-        'Sentido',
-        'Situação',
-        'Terminal',
+        'QUANTIDADE',
+        'SENTIDO',
+        'SITUAÇÃO',
+        'TERMINAL',
       ],
       content: FutureBuilder<List<LineupItem>>(
         future: _fetchAndMergeData(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          if (snapshot.hasError)
+          }
+          if (snapshot.hasError) {
             return Center(
               child: Text(
                 'Erro: ${snapshot.error}',
                 style: const TextStyle(color: Colors.red),
               ),
             );
-          if (!snapshot.hasData || snapshot.data!.isEmpty)
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(
               child: Text(
                 'Nenhum item',
                 style: TextStyle(color: Colors.white70),
               ),
             );
+          }
           final items = snapshot.data!;
           return ListView.builder(
             itemCount: items.length,

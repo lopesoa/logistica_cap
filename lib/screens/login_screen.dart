@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Importe o Firebase Auth
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart'; // Importe o Firebase Auth
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,6 +33,11 @@ class _LoginScreenState extends State<LoginScreen> {
       // (a lógica de navegação será adicionada depois)
     } on FirebaseAuthException catch (e) {
       // Trata erros de login
+      print('Erro do Firebase Auth:');
+      print(
+        'Código do Erro: ${e.code}',
+      ); // Ex: 'wrong-password', 'user-not-found'
+      print('Mensagem: ${e.message}');
       String errorMessage = 'Ocorreu um erro, tente novamente.';
       if (e.code == 'user-not-found' ||
           e.code == 'wrong-password' ||
@@ -49,6 +55,17 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       }
+    } on PlatformException catch (e) {
+      // Erros relacionados à plataforma (comunicação nativa)
+      print('Erro de Plataforma (PlatformException):');
+      print('Código do Erro: ${e.code}');
+      print('Mensagem: ${e.message}');
+      print('Detalhes: ${e.details}');
+    } catch (e) {
+      // Pega qualquer outro tipo de erro
+      print('Ocorreu um erro genérico:');
+      print(e); // Imprime o objeto de erro inteiro
+      print('Tipo do Erro: ${e.runtimeType}');
     } finally {
       // Esconde o indicador de carregamento
       if (mounted) {
