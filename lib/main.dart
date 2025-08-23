@@ -21,7 +21,7 @@ void main() async {
     );
   }
 
-  //await windowManager.ensureInitialized();
+  await windowManager.ensureInitialized();
 
   /* // Configurações para a janela do Windows
   WindowOptions windowOptions = const WindowOptions(
