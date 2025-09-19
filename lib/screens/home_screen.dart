@@ -935,7 +935,6 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
       stream: FirebaseFirestore.instance
           .collection('ships')
           .where('status', isEqualTo: 'Previsto')
-          .where('startDate', isGreaterThanOrEqualTo: DateTime.now())
           .orderBy('startDate')
           .limit(1)
           .snapshots(),
